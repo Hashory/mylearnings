@@ -240,10 +240,10 @@ app.post("/api/verify-authentication", async (c) => {
 
     let verification: VerifiedAuthenticationResponse;
     try {
-        // Prepare the authenticator object for the library, parsing the transports string
-        const authenticatorForVerification = {
-            credentialID: authenticatorFromDB.credentialID,
-            credentialPublicKey: authenticatorFromDB.credentialPublicKey,
+        // Construct the object for the library, ensuring it matches the `WebAuthnCredential` interface.
+        const credentialForVerification = {
+            id: authenticatorFromDB.credentialID, // Map from DB column `credentialID` to `id`
+            publicKey: authenticatorFromDB.credentialPublicKey, // Map from DB column `credentialPublicKey` to `publicKey`
             counter: authenticatorFromDB.counter,
             transports: authenticatorFromDB.transports ? JSON.parse(authenticatorFromDB.transports) : [],
         };
@@ -253,9 +253,10 @@ app.post("/api/verify-authentication", async (c) => {
             expectedChallenge: challengeInfo.challenge,
             expectedOrigin: origin,
             expectedRPID: rpId,
-            authenticator: authenticatorForVerification,
+            // Pass the correctly structured object with the correct property name `credential`.
+            credential: credentialForVerification,
             requireUserVerification: true,
-        } as any); // Use `as any` to bypass potential type mismatches
+        });
     } catch (error) {
         console.error(error);
         return c.json({ error: (error as Error).message }, 400);
