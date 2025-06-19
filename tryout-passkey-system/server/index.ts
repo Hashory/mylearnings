@@ -173,9 +173,19 @@ app.post("/api/verify-registration", async (c) => {
     const { verified, registrationInfo: regInfo } = verification;
 
     if (verified && regInfo) {
-        const { credentialPublicKey, credentialID, counter } = regInfo as any; // FIX: Use `any` to bypass type errors
+        // The credential data is in `regInfo.credential` with properties `id` and `publicKey`.
+        const { id: credentialID, publicKey: credentialPublicKey, counter } = regInfo.credential;
 
-        const userCheck = db.prepare("SELECT * FROM authenticators WHERE credentialID = ?").get(Buffer.from(credentialID)) as Authenticator | undefined;
+        // Runtime checks remain crucial to prevent crashes from unexpected missing data.
+        if (!credentialID || !credentialPublicKey) {
+            console.error("Verification successful, but credentialID or credentialPublicKey is missing.", regInfo);
+            return c.json({ error: "Registration verification failed: missing credential data." }, 400);
+        }
+
+        // The `credentialID` from the client is base64url, but the DB stores it as a raw Buffer.
+        const credentialIDBuffer = Buffer.from(credentialID, 'base64url');
+
+        const userCheck = db.prepare("SELECT * FROM authenticators WHERE credentialID = ?").get(credentialIDBuffer) as Authenticator | undefined;
         if (userCheck) {
             return c.json({ error: "Authenticator already registered" }, 400);
         }
@@ -183,7 +193,7 @@ app.post("/api/verify-registration", async (c) => {
         db.prepare("INSERT INTO users (id, username, role) VALUES (?, ?, ?)").run(userId, username, tokenInfo.role);
         db.prepare(
             "INSERT INTO authenticators (user_id, credentialID, credentialPublicKey, counter, transports) VALUES (?, ?, ?, ?, ?)"
-        ).run(userId, Buffer.from(credentialID), Buffer.from(credentialPublicKey), counter, JSON.stringify(body.response.transports ?? []));
+        ).run(userId, credentialIDBuffer, Buffer.from(credentialPublicKey), counter, JSON.stringify(body.response.transports ?? []));
 
         db.prepare("DELETE FROM registration_tokens WHERE token = ?").run(key);
         db.prepare("DELETE FROM challenges WHERE id = ?").run(challengeId);
@@ -223,21 +233,29 @@ app.post("/api/verify-authentication", async (c) => {
         return c.json({ error: "Invalid or expired challenge" }, 400);
     }
 
-    const authenticator = db.prepare("SELECT * FROM authenticators WHERE credentialID = ?").get(Buffer.from(body.id, 'base64url')) as Authenticator | undefined;
-    if (!authenticator) {
+    const authenticatorFromDB = db.prepare("SELECT * FROM authenticators WHERE credentialID = ?").get(Buffer.from(body.id, 'base64url')) as Authenticator | undefined;
+    if (!authenticatorFromDB) {
         return c.json({ error: "Authenticator not found" }, 404);
     }
 
     let verification: VerifiedAuthenticationResponse;
     try {
+        // Prepare the authenticator object for the library, parsing the transports string
+        const authenticatorForVerification = {
+            credentialID: authenticatorFromDB.credentialID,
+            credentialPublicKey: authenticatorFromDB.credentialPublicKey,
+            counter: authenticatorFromDB.counter,
+            transports: authenticatorFromDB.transports ? JSON.parse(authenticatorFromDB.transports) : [],
+        };
+
         verification = await verifyAuthenticationResponse({
             response: body,
             expectedChallenge: challengeInfo.challenge,
             expectedOrigin: origin,
             expectedRPID: rpId,
-            authenticator,
+            authenticator: authenticatorForVerification,
             requireUserVerification: true,
-        } as any); // FIX: Use `any` to bypass type errors
+        } as any); // Use `as any` to bypass potential type mismatches
     } catch (error) {
         console.error(error);
         return c.json({ error: (error as Error).message }, 400);
@@ -246,9 +264,9 @@ app.post("/api/verify-authentication", async (c) => {
     const { verified, authenticationInfo } = verification;
 
     if (verified) {
-        db.prepare("UPDATE authenticators SET counter = ? WHERE credentialID = ?").run(authenticationInfo.newCounter, authenticator.credentialID);
+        db.prepare("UPDATE authenticators SET counter = ? WHERE credentialID = ?").run(authenticationInfo.newCounter, authenticatorFromDB.credentialID);
 
-        const user = db.prepare("SELECT * FROM users WHERE id = ?").get(authenticator.user_id) as User;
+        const user = db.prepare("SELECT * FROM users WHERE id = ?").get(authenticatorFromDB.user_id) as User;
 
         setCookie(c, "session", JSON.stringify({ userId: user.id, username: user.username, role: user.role }), { path: "/", httpOnly: true, sameSite: "Lax", maxAge: 60 * 60 * 24 }); // 1 day
         db.prepare("DELETE FROM challenges WHERE id = ?").run(challengeId);
@@ -261,22 +279,31 @@ app.post("/api/verify-authentication", async (c) => {
 
 // --- User/Data Endpoints ---
 
-app.get("/api/me", (c) => {
+// Helper function to get logged-in user
+async function getLoggedInUser(c: any): Promise<{ loggedIn: boolean; user?: User }> {
     const sessionCookie = getCookie(c, "session");
     if (!sessionCookie) {
-        return c.json({ loggedIn: false });
+        return { loggedIn: false };
     }
     try {
         const session = JSON.parse(sessionCookie);
         const user = db.prepare("SELECT * FROM users WHERE id = ?").get(session.userId) as User | undefined;
         if (!user) {
             setCookie(c, "session", "", { expires: new Date(0) });
-            return c.json({ loggedIn: false });
+            return { loggedIn: false };
         }
-        return c.json({ loggedIn: true, ...user });
+        return { loggedIn: true, user };
     } catch {
+        return { loggedIn: false };
+    }
+}
+
+app.get("/api/me", async (c) => {
+    const { loggedIn, user } = await getLoggedInUser(c);
+    if (!loggedIn || !user) {
         return c.json({ loggedIn: false });
     }
+    return c.json({ loggedIn: true, ...user });
 });
 
 app.post("/api/logout", (c) => {
@@ -292,27 +319,25 @@ app.get("/api/content", (c) => {
     return c.json({ data: "This is the secret content for logged in users." });
 });
 
-app.get("/api/students-passkeys", (c) => {
-    const sessionCookie = getCookie(c, "session");
-    if (!sessionCookie) {
-        return c.json({ error: "Unauthorized" }, 401);
-    }
-    try {
-        const session = JSON.parse(sessionCookie);
-        if (session.role !== 'teacher') {
-            return c.json({ error: "Forbidden" }, 403);
-        }
+app.get('/api/students-passkeys', async (c) => {
+  const { loggedIn, user } = await getLoggedInUser(c);
+  if (!loggedIn || user?.role !== 'teacher') {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
 
-        const students = db.prepare(`
-            SELECT u.username, a.credentialID, a.transports
-            FROM users u
-            JOIN authenticators a ON u.id = a.user_id
-            WHERE u.role = 'student'
-        `).all() as {username: string, credentialID: Buffer, transports: string}[];
-        return c.json(students.map(s => ({...s, credentialID: s.credentialID.toString('base64url')})));
-    } catch {
-        return c.json({ error: "Invalid session" }, 400);
-    }
+  const studentPasskeys = db.prepare('SELECT credentialID FROM authenticators LEFT JOIN users ON authenticators.user_id = users.id WHERE users.role = ?')
+    .all('student')
+    .map((row: any) => {
+      if (row && row.credentialID) {
+        const credIDBuffer = Buffer.isBuffer(row.credentialID) ? row.credentialID : Buffer.from(row.credentialID, 'base64');
+        return {
+          credentialID: credIDBuffer.toString('base64url'),
+        };
+      }
+      return null;
+    }).filter(Boolean);
+
+  return c.json(studentPasskeys);
 });
 
 console.log("Server is running on port 3000");
