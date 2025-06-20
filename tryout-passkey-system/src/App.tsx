@@ -191,7 +191,7 @@ function App() {
       <p>(you can show this only if you are logged in)</p>
       <code>
         <pre>
-          {user.loggedIn ? <p>{content}</p> : <p>(Not logged in)</p>}
+          {content ? <p>{content}</p> : <p>(Content is not available)</p>}
         </pre>
       </code>
       <hr />
