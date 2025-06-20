@@ -186,16 +186,20 @@ function App() {
       ) : (
         <button onClick={handleLogin}>Login with Passkey</button>
       )}
-
+      <hr />
+      <h2>Content</h2>
+      <p>(you can show this only if you are logged in)</p>
       <code>
         <pre>
-          ## Content(you can show this only if you are logged in):
           {user.loggedIn ? <p>{content}</p> : <p>(Not logged in)</p>}
-
-          <br />
-
-          ## Students Passkeys(Teacher View)
-          {user.loggedIn && user.role === 'teacher' ? (
+        </pre>
+      </code>
+      <hr />
+      <h2>Students Passkeys</h2>
+      <p>(visible only to teachers)</p>
+      <code>
+        <pre>
+          {
             studentPasskeys.length > 0 ? (
               <ul>
                 {studentPasskeys.map((key) => (
@@ -205,11 +209,9 @@ function App() {
                 ))}
               </ul>
             ) : (
-              <p>(No student passkeys found)</p>
+              <p>(No student passkeys found or you are not a teacher)</p>
             )
-          ) : (
-            <p>(Visible to teachers only)</p>
-          )}
+          }
         </pre>
       </code>
 

@@ -15,6 +15,7 @@ import type {
 } from "@simplewebauthn/server";
 import Database from "better-sqlite3";
 import crypto from "crypto";
+import { decodeAndDecompress, content } from "./content.ts";
 
 const db = new Database("passkey-demo.db");
 
@@ -317,7 +318,7 @@ app.get("/api/content", (c) => {
     if (!sessionCookie) {
         return c.json({ error: "Unauthorized" }, 401);
     }
-    return c.json({ data: "This is the secret content for logged in users." });
+    return c.json({ data: decodeAndDecompress(content) });
 });
 
 app.get('/api/students-passkeys', async (c) => {
