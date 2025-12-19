@@ -26,7 +26,9 @@ console.log('--- プログラム開始 ---');
 // );
 
 // ↓ ここにコードを書いてください (const counter$ = ... )
-
+const counter$ = interval(500).pipe(
+  take(5)
+)
 
 
 console.log('--- 購読開始 ---');
@@ -41,7 +43,10 @@ console.log('--- 購読開始 ---');
 // });
 
 // ↓ ここにコードを書いてください
-
+counter$.subscribe({
+  next: (val) => console.log(`Count: ${val}`),
+  complete: () => console.log("done~!")
+})
 
 
 console.log('--- プログラム末尾 (非同期なのでここが先に表示されます) ---');

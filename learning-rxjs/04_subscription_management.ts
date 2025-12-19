@@ -25,7 +25,10 @@ let subscription: Subscription;
 // });
 
 // ↓ ここにコードを書いてください (subscription = ... )
-
+subscription = counter$.subscribe(val => {
+  console.log(`[Timer]: ${val}`)
+}
+)
 
 
 // --- Q2. 3.5秒後に購読を解除(unsubscribe)してください ---
@@ -39,7 +42,9 @@ setTimeout(() => {
   // }
 
   // ↓ ここにコードを書いてください
-
+  if (subscription) {
+    subscription.unsubscribe();
+  }
 
   console.log('--- 解除完了 ---');
 }, 3500);
