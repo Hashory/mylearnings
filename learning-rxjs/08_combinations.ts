@@ -26,7 +26,10 @@ console.log('--- combineLatest の実験 ---');
 // });
 
 // ↓ ここにコードを書いてください
-
+combineLatest([name$, age$])
+  .subscribe(([name$, age$]) => {
+    console.log(`Profile: ${name$} (${age$})`)
+  })
 
 
 // --- Q2. 名前だけ変更してみてください ---
@@ -35,7 +38,7 @@ console.log('-> 名前を Bob に変更');
 // ヒント: name$.next('Bob');
 
 // ↓ ここにコードを書いてください
-
+name$.next("Bob")
 
 
 // --- Q3. 年齢だけ変更してみてください ---
@@ -44,5 +47,5 @@ console.log('-> 年齢を 30 に変更');
 // ヒント: age$.next(30);
 
 // ↓ ここにコードを書いてください
-
+age$.next(30)
 // 結果として、どちらか片方を変えるだけで、両方の最新セットがログに出るはずです。
