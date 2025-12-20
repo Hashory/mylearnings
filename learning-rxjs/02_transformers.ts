@@ -34,5 +34,10 @@ console.log('--- データを加工して表示 ---');
 // .subscribe(val => console.log(`Result: ${val}`));
 
 // ↓ ここにコードを書いてください ("numbers$.pipe(" から始めてみましょう)
-
+numbers$.pipe(
+  tap(n => console.log(`Flow: ${n}`)),
+  filter(m => m % 2 === 0),
+  map(n => n * 10)
+)
+  .subscribe(val => console.log(`Result: ${val}`));
 

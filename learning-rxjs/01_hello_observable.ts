@@ -24,6 +24,11 @@ import { Observable } from 'rxjs';
 // });
 
 // ↓ ここにコードを書いてください (const myObservable = ... )
+const myObservable = new Observable<string>((subscriber) => {
+  subscriber.next("Hello");
+  subscriber.next("RxJS");
+  subscriber.complete();
+});
 
 
 
@@ -39,7 +44,10 @@ console.log('--- 1. 購読開始 ---');
 // });
 
 // ↓ ここにコードを書いてください
-
+myObservable.subscribe({
+  next: (value) => console.log(`受信: ${value}`),
+  complete: () => console.log('完了'),
+})
 
 
 console.log('--- 1. 購読終了 ---\n');
@@ -55,11 +63,15 @@ console.log('--- 2. "of" を使った作成 ---');
 // const simpleObservable = of(1, 2, 3, 4, 5);
 
 // ↓ ここにコードを書いてください (const simpleObservable = ... )
-
+const simpleObservable = of(1, 2, 3, 4, 5);
 
 
 // ヒント: simpleObservable.subscribe(value => console.log(value));
 
 // ↓ ここにコードを書いてください
+simpleObservable.subscribe({
+  next: (value) => console.log(`受信: ${value}`),
+  complete: () => console.log('完了'),
+});
 
 

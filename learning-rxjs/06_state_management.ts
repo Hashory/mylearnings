@@ -18,7 +18,7 @@ console.log('--- BehaviorSubject ---');
 // ヒント: const state$ = new BehaviorSubject<string>('Initial');
 
 // ↓ ここにコードを書いてください
-
+const state$ = new BehaviorSubject<string>("Initial")
 
 
 // --- Q2. 購読者Aを登録してください。登録直後に値が表示されるはずです ---
@@ -26,7 +26,7 @@ console.log('--- BehaviorSubject ---');
 // ヒント: state$.subscribe(v => console.log(`[A] ${v}`));
 
 // ↓ ここにコードを書いてください (実行して "Initial" が出るか確認)
-
+state$.subscribe(v => console.log(`[A] ${v}`))
 
 
 // --- Q3. 値を "Updated" に更新し、その時点での現在値を `.value` で取得してください ---
@@ -38,5 +38,5 @@ console.log('-> 更新します');
 // console.log(`現在の値: ${state$.value}`);
 
 // ↓ ここにコードを書いてください
-
-
+state$.next("Updated")
+console.log(`現在の値: ${state$.value}`)

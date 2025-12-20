@@ -48,5 +48,7 @@ const input$ = of(1, 2, 3);
 //  まずここでは「受け取った値で別のObservableをreturnする」書き方を学びましょう)
 
 // ↓ ここにコードを書いてください
-
-
+input$.pipe(
+  switchMap(id => fetchUser(id))
+)
+  .subscribe(result => console.log(`[Result]: ${result}`))
