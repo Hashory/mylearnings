@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173" # Vite dev
+      - "3000:3000" # Api Serve
+    command: sh -c "pnpm dev & pnpm serve"
