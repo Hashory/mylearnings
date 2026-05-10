@@ -1,0 +1,7 @@
+[project]
+name = "mydecisiontree"
+version = "0.1.0"
+description = "trying to implement a decision tree in python (my learning project)"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
